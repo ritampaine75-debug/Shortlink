@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Chat URL Shorter — Premium Short Links & Analytics</title>
+  <meta name="description" content="A modern, high-performance URL shortening service with Firebase Realtime Database persistence, smart mobile app redirects, QR code generator, and visual analytics." />
+  <meta property="og:title" content="Chat URL Shorter — Premium Short Links & Analytics" />
+  <meta property="og:description" content="Shorten your links, generate instant QR codes, and track real-time click analytics with Firebase persistence." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Google Fonts & Tailwind CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+              950: '#1e1b4b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Firebase v9 Compat SDKs & QR Code CDN -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    /* Custom Glassmorphism & Animations */
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.45);
+    }
+    
+    .light .glass-card {
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 20px 40px -15px rgba(99, 102, 241, 0.08);
+    }
+
+    .glass-input {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+    }
+    
+    .light .glass-input {
+      background: rgba(248, 250, 252, 0.85);
+      border: 1px solid rgba(203, 213, 225, 0.6);
+    }
+
+    .glass-pill {
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+    }
+
+    .glow-indigo {
+      box-shadow: 0 0 35px -5px rgba(99, 102, 241, 0.35);
+    }
+
+    /* Ambient background blobs */
+    .bg-blobs {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .blob-1 {
+      position: absolute;
+      top: -10%;
+      left: 20%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(99, 102, 241, 0) 70%);
+      border-radius: 50%;
+      filter: blur(40px);
+    }
+    .blob-2 {
+      position: absolute;
+      bottom: 5%;
+      right: 15%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.14) 0%, rgba(168, 85, 247, 0) 70%);
+      border-radius: 50%;
+      filter: blur(40px);
+    }
+    .blob-3 {
+      position: absolute;
+      top: 40%;
+      left: -10%;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, rgba(59, 130, 246, 0) 70%);
+      border-radius: 50%;
+      filter: blur(40px);
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.45);
+    }
+
+    /* Pulse animation */
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(0.98); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 3s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 transition-colors duration-300 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Background Ambient Glow -->
+  <div class="bg-blobs">
+    <div class="blob-1"></div>
+    <div class="blob-2"></div>
+    <div class="blob-3"></div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 right-5 left-5 md:left-auto md:w-96 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- REDIRECT OVERLAY VIEW (Shown when a short code is present in URL) -->
+  <div id="redirectView" class="hidden min-h-screen w-full flex items-center justify-center p-4">
+    <div class="glass-card rounded-3xl p-8 max-w-md w-full text-center glow-indigo relative overflow-hidden">
+      <!-- Loading State -->
+      <div id="redirectLoadingState">
+        <div class="w-16 h-16 mx-auto mb-6 relative">
+          <div class="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <svg class="w-6 h-6 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+        </div>
+        <h2 class="text-xl font-bold text-slate-100 mb-2">Opening destination...</h2>
+        <p class="text-sm text-slate-400 font-mono break-all mb-4" id="redirectDestinationDomain">Looking up link records...</p>
+        <p class="text-xs text-slate-500 mb-4">You will be redirected immediately.</p>
+        <a id="redirectFallbackLink" href="#" class="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium">
+          <span>Taking too long? Click here</span>
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+
+      <!-- 404 / Missing Link State -->
+      <div id="redirectNotFoundState" class="hidden">
+        <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-slate-100 mb-2">Link Not Found</h2>
+        <p class="text-sm text-slate-400 mb-6 leading-relaxed">This shortened link does not exist, has expired, or was removed.</p>
+        <a href="/" onclick="navigateToHome(event)" class="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-lg shadow-indigo-600/30 transition-all">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Go to Chat URL Shorter</span>
+        </a>
+      </div>
+
+      <!-- Disabled State -->
+      <div id="redirectDisabledState" class="hidden">
+        <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+          <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-slate-100 mb-2">This Link Is Disabled</h2>
+        <p class="text-sm text-slate-400 mb-6 leading-relaxed">The owner of this link has temporarily paused access.</p>
+        <a href="/" onclick="navigateToHome(event)" class="inline-flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium border border-slate-700 transition-all">
+          <span>Return to Homepage</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="mainApp" class="flex flex-col min-h-screen">
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <!-- Logo -->
+        <a href="/" onclick="switchTab('home', event)" class="flex items-center gap-3 group focus:outline-none">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-extrabold text-base tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent">Chat URL Shorter</span>
+            <span class="text-[10px] text-indigo-400/80 font-mono tracking-wider font-semibold -mt-1 uppercase">Cloud Realtime Sync</span>
+          </div>
+        </a>
+
+        <!-- Desktop Navigation Tabs -->
+        <nav class="hidden md:flex items-center gap-1 bg-slate-900/60 p-1 rounded-xl border border-white/10">
+          <button onclick="switchTab('home')" data-tab="home" class="nav-tab active flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-white bg-indigo-600/90 shadow-sm">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span>Shorten</span>
+          </button>
+          <button onclick="switchTab('links')" data-tab="links" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 6h16M4 12h16M4 18h7"></path>
+            </svg>
+            <span>My Links</span>
+            <span id="navLinksBadge" class="hidden px-1.5 py-0.5 text-[10px] rounded-full bg-indigo-500/20 text-indigo-300 font-mono">0</span>
+          </button>
+          <button onclick="switchTab('analytics')" data-tab="analytics" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Analytics</span>
+          </button>
+          <button onclick="switchTab('settings')" data-tab="settings" class="nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span>Settings</span>
+          </button>
+        </nav>
+
+        <!-- Right Quick Actions -->
+        <div class="flex items-center gap-2">
+          <!-- Firebase Connection Indicator -->
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-white/10 text-xs" title="Firebase RTDB Connected">
+            <span id="dbStatusDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="dbStatusText" class="text-slate-400 text-[11px] font-mono font-medium hidden sm:inline">RTDB Online</span>
+          </div>
+
+          <!-- Quick Theme Toggle -->
+          <button onclick="toggleTheme()" class="p-2 rounded-xl text-slate-400 hover:text-slate-100 hover:bg-slate-800/80 transition-colors border border-white/5" title="Toggle Light/Dark Theme">
+            <svg id="themeIconSun" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg id="themeIconMoon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 md:py-10">
+      
+      <!-- TAB 1: SHORTEN / HOME -->
+      <section id="tabHome" class="space-y-8">
+        <!-- Hero Header -->
+        <div class="text-center max-w-2xl mx-auto space-y-3 pt-2 md:pt-6">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-pill text-indigo-300 text-xs font-semibold tracking-wide uppercase">
+            <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            Realtime Base62 Engine
+          </div>
+          <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
+            Shorten your links.<br />
+            <span class="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">Share them anywhere.</span>
+          </h1>
+          <p class="text-sm sm:text-base text-slate-400 leading-relaxed max-w-xl mx-auto">
+            Transform lengthy URLs into clean, fast, deep-linking short URLs with built-in QR generator and detailed click analytics.
+          </p>
+        </div>
+
+        <!-- Shortener Form Card -->
+        <div class="max-w-2xl mx-auto">
+          <div class="glass-card rounded-3xl p-5 sm:p-7 glow-indigo border border-white/10 relative overflow-hidden">
+            <form id="shortenForm" onsubmit="handleShortenSubmit(event)" class="space-y-4">
+              <!-- Long URL Input -->
+              <div>
+                <label for="longUrlInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                  Destination URL <span class="text-rose-400">*</span>
+                </label>
+                <div class="relative flex items-center">
+                  <div class="absolute left-4 text-slate-400 pointer-events-none">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                  </div>
+                  <input
+                    type="url"
+                    id="longUrlInput"
+                    placeholder="https://example.com/very/long/destination/url"
+                    required
+                    autocomplete="off"
+                    class="glass-input w-full pl-12 pr-24 py-4 rounded-2xl text-slate-100 placeholder-slate-500 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-sans"
+                  />
+                  <!-- Paste Button -->
+                  <button
+                    type="button"
+                    onclick="handlePasteUrl()"
+                    class="absolute right-2 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 bg-slate-800/80 hover:bg-slate-700 border border-white/10 transition-colors flex items-center gap-1"
+                    title="Paste from clipboard"
+                  >
+                    <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    </svg>
+                    <span>Paste</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Destination Preview Badge -->
+              <div id="detectedPlatformBadge" class="hidden items-center gap-2 text-xs text-indigo-300 font-medium px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+                <span id="detectedPlatformIcon" class="w-4 h-4 flex items-center justify-center"></span>
+                <span>Detected platform: <strong id="detectedPlatformText" class="text-white capitalize">Web</strong></span>
+              </div>
+
+              <!-- Custom Alias Accordion / Toggle -->
+              <div>
+                <button
+                  type="button"
+                  onclick="toggleCustomAlias()"
+                  class="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-slate-200 transition-colors py-1"
+                >
+                  <svg id="aliasChevron" class="w-3.5 h-3.5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <span>Custom alias & options (optional)</span>
+                </button>
+
+                <div id="customAliasContainer" class="hidden mt-3 space-y-3 pt-2 border-t border-white/5">
+                  <div>
+                    <label for="customAliasInput" class="block text-xs font-medium text-slate-400 mb-1.5">
+                      Custom Short Slug (letters, numbers, hyphens, underscores)
+                    </label>
+                    <div class="flex items-center glass-input rounded-2xl overflow-hidden border border-white/10 focus-within:ring-2 focus-within:ring-indigo-500/50">
+                      <span id="aliasDomainPrefix" class="pl-4 pr-1 text-slate-500 text-xs sm:text-sm font-mono select-none">domain.com/</span>
+                      <input
+                        type="text"
+                        id="customAliasInput"
+                        placeholder="my-custom-link"
+                        maxlength="32"
+                        class="bg-transparent w-full pr-4 py-3 text-slate-100 placeholder-slate-600 text-sm font-mono focus:outline-none"
+                      />
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1">Leave blank to auto-generate a unique Base62 short code.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Submit Button -->
+              <button
+                type="submit"
+                id="shortenSubmitBtn"
+                class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-base shadow-xl shadow-indigo-600/30 hover:shadow-indigo-600/50 transition-all flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <span id="btnSpinner" class="hidden w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin"></span>
+                <span id="btnText" class="flex items-center gap-2">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>Shorten URL</span>
+                </span>
+              </button>
+            </form>
+
+            <!-- Success Result Card (Initially Hidden) -->
+            <div id="shortenResultCard" class="hidden mt-6 pt-6 border-t border-white/10 space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>URL Shortened Successfully</span>
+                </span>
+                <span id="resultPlatformTag" class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono">Platform</span>
+              </div>
+
+              <!-- Output Display Box -->
+              <div class="glass-input p-4 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-indigo-500/30 bg-indigo-950/20">
+                <div class="overflow-hidden">
+                  <a id="resultShortUrlLink" href="#" target="_blank" class="text-indigo-400 hover:text-indigo-300 font-mono font-bold text-base sm:text-lg break-all transition-colors block">
+                    https://domain.com/abc123
+                  </a>
+                  <p id="resultLongUrlPreview" class="text-xs text-slate-500 truncate mt-0.5">Destination preview</p>
+                </div>
+                
+                <!-- Quick action group -->
+                <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                  <button
+                    onclick="copyResultShortUrl()"
+                    id="copyResultBtn"
+                    class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition-all active:scale-95"
+                  >
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span id="copyResultBtnText">Copy</span>
+                  </button>
+
+                  <button
+                    onclick="shareResultShortUrl()"
+                    class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10 transition-colors"
+                    title="Share Link"
+                  >
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="18" cy="5" r="3"></circle>
+                      <circle cx="6" cy="12" r="3"></circle>
+                      <circle cx="18" cy="19" r="3"></circle>
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                  </button>
+
+                  <button
+                    onclick="openQrModalFromResult()"
+                    class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10 transition-colors"
+                    title="Show QR Code"
+                  >
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="3" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="3" width="7" height="7"></rect>
+                      <rect x="14" y="14" width="7" height="7"></rect>
+                      <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Stats Banner -->
+        <div class="max-w-2xl mx-auto grid grid-cols-3 gap-3">
+          <div class="glass-card rounded-2xl p-3.5 sm:p-4 text-center border border-white/5">
+            <span class="block text-slate-400 text-xs font-medium mb-1">Your Links</span>
+            <span id="statTotalLinks" class="text-xl sm:text-2xl font-extrabold text-white font-mono">0</span>
+          </div>
+          <div class="glass-card rounded-2xl p-3.5 sm:p-4 text-center border border-white/5">
+            <span class="block text-slate-400 text-xs font-medium mb-1">Total Clicks</span>
+            <span id="statTotalClicks" class="text-xl sm:text-2xl font-extrabold text-indigo-400 font-mono">0</span>
+          </div>
+          <div class="glass-card rounded-2xl p-3.5 sm:p-4 text-center border border-white/5">
+            <span class="block text-slate-400 text-xs font-medium mb-1">Avg per Link</span>
+            <span id="statAvgClicks" class="text-xl sm:text-2xl font-extrabold text-purple-400 font-mono">0</span>
+          </div>
+        </div>
+
+        <!-- Feature Highlights -->
+        <div class="max-w-4xl mx-auto grid sm:grid-cols-3 gap-4 pt-4">
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-2">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </div>
+            <h3 class="font-bold text-sm text-slate-200">Instant Redirects</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">Direct atomic lookups forward visitors with minimum latency and deep-linking support.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-2">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </div>
+            <h3 class="font-bold text-sm text-slate-200">Vector QR Codes</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">Instant high-resolution QR codes encoded for direct mobile scanning and printing.</p>
+          </div>
+
+          <div class="glass-card rounded-2xl p-5 border border-white/5 space-y-2">
+            <div class="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-400 flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </div>
+            <h3 class="font-bold text-sm text-slate-200">Atomic Collision Defense</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">Base62 collision-safe generation ensures zero link overwrites or alias duplicates.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: MY LINKS -->
+      <section id="tabLinks" class="hidden space-y-6">
+        <!-- Header & Search Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-white tracking-tight">My Shortened Links</h2>
+            <p class="text-xs text-slate-400">Manage, monitor, and configure active links in your workspace.</p>
+          </div>
+          <!-- Search & Filter Input -->
+          <div class="relative w-full sm:w-72">
+            <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <input
+              type="text"
+              id="linkSearchInput"
+              oninput="renderLinksList()"
+              placeholder="Search code, alias, URL..."
+              class="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
+
+        <!-- Links List Container -->
+        <div id="linksContainer" class="space-y-3">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="linksEmptyState" class="hidden glass-card rounded-3xl p-12 text-center max-w-md mx-auto space-y-4">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+            </svg>
+          </div>
+          <h3 class="text-base font-bold text-white">No shortened links yet</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">Create your first link on the homepage to start tracking click statistics and generating QR codes.</p>
+          <button onclick="switchTab('home')" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 transition-all">
+            Shorten a link now
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 3: VISUAL ANALYTICS -->
+      <section id="tabAnalytics" class="hidden space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Performance Analytics</h2>
+          <p class="text-xs text-slate-400">Real-time click insights, platform distributions, and device breakdown.</p>
+        </div>
+
+        <!-- Overview Metric Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="glass-card rounded-2xl p-4 border border-white/5">
+            <span class="text-xs text-slate-400 font-medium">Total Tracked Links</span>
+            <div class="text-2xl font-bold text-white mt-1 font-mono" id="analyticsTotalLinks">0</div>
+            <span class="text-[11px] text-emerald-400 flex items-center gap-1 mt-1">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+              <span>Persisted on RTDB</span>
+            </span>
+          </div>
+
+          <div class="glass-card rounded-2xl p-4 border border-white/5">
+            <span class="text-xs text-slate-400 font-medium">Total Click Invocations</span>
+            <div class="text-2xl font-bold text-indigo-400 mt-1 font-mono" id="analyticsTotalClicks">0</div>
+            <span class="text-[11px] text-slate-400 mt-1 block">Safe atomic transactions</span>
+          </div>
+
+          <div class="glass-card rounded-2xl p-4 border border-white/5">
+            <span class="text-xs text-slate-400 font-medium">Active Links Ratio</span>
+            <div class="text-2xl font-bold text-purple-400 mt-1 font-mono" id="analyticsActiveRatio">100%</div>
+            <span class="text-[11px] text-slate-400 mt-1 block" id="analyticsActiveCount">0 of 0 active</span>
+          </div>
+
+          <div class="glass-card rounded-2xl p-4 border border-white/5">
+            <span class="text-xs text-slate-400 font-medium">Top Destination</span>
+            <div class="text-lg font-bold text-pink-400 mt-1 capitalize truncate" id="analyticsTopPlatform">None</div>
+            <span class="text-[11px] text-slate-400 mt-1 block">Most popular platform</span>
+          </div>
+        </div>
+
+        <!-- Visual Distribution Cards -->
+        <div class="grid md:grid-cols-2 gap-6">
+          <!-- Platform Distribution -->
+          <div class="glass-card rounded-3xl p-6 border border-white/10 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-slate-200">Destination Platforms</h3>
+              <span class="text-xs text-slate-400 font-mono">By Link Count</span>
+            </div>
+            <div id="analyticsPlatformsList" class="space-y-3">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Top Performing Links -->
+          <div class="glass-card rounded-3xl p-6 border border-white/10 space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-slate-200">Top Performing Links</h3>
+              <span class="text-xs text-slate-400 font-mono">By Clicks</span>
+            </div>
+            <div id="analyticsTopLinksList" class="space-y-3">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SETTINGS & ABOUT -->
+      <section id="tabSettings" class="hidden space-y-6 max-w-3xl mx-auto">
+        <div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">System Settings</h2>
+          <p class="text-xs text-slate-400">Database synchronization, theme preferences, and service information.</p>
+        </div>
+
+        <!-- Settings Cards -->
+        <div class="space-y-4">
+          <!-- Appearance -->
+          <div class="glass-card rounded-2xl p-5 border border-white/10 space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-sm text-white">Appearance Theme</h3>
+                <p class="text-xs text-slate-400">Switch between dark, light, or system appearance.</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 pt-2">
+              <button onclick="setThemeMode('dark')" id="themeBtnDark" class="py-2.5 px-3 rounded-xl border border-indigo-500 bg-indigo-600/20 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+                <span>Dark</span>
+              </button>
+              <button onclick="setThemeMode('light')" id="themeBtnLight" class="py-2.5 px-3 rounded-xl border border-white/10 bg-slate-900/50 text-slate-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                </svg>
+                <span>Light</span>
+              </button>
+              <button onclick="setThemeMode('system')" id="themeBtnSystem" class="py-2.5 px-3 rounded-xl border border-white/10 bg-slate-900/50 text-slate-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                  <line x1="8" y1="21" x2="16" y2="21"></line>
+                  <line x1="12" y1="17" x2="12" y2="21"></line>
+                </svg>
+                <span>System</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Firebase Status Card -->
+          <div class="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
+            <h3 class="font-bold text-sm text-white flex items-center gap-2">
+              <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+              </svg>
+              <span>Firebase Realtime Database Status</span>
+            </h3>
+            <div class="p-3.5 rounded-xl bg-slate-900/80 border border-white/5 space-y-2 font-mono text-xs">
+              <div class="flex justify-between">
+                <span class="text-slate-500">Project ID:</span>
+                <span class="text-slate-300">hiiii-72d78</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Database Endpoint:</span>
+                <span class="text-slate-300 truncate max-w-[200px]">hiiii-72d78-default-rtdb</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">Sync Status:</span>
+                <span id="settingsDbSyncStatus" class="text-emerald-400 font-bold">Connected & Synchronized</span>
+              </div>
+            </div>
+            <button onclick="checkDbConnection(true)" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 pt-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="1 4 1 10 7 10"></polyline>
+                <polyline points="23 20 23 14 17 14"></polyline>
+                <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+              </svg>
+              <span>Test Connection & Ping DB</span>
+            </button>
+          </div>
+
+          <!-- Owner Workspace ID -->
+          <div class="glass-card rounded-2xl p-5 border border-white/10 space-y-3">
+            <h3 class="font-bold text-sm text-white">Client Workspace Identity</h3>
+            <p class="text-xs text-slate-400">Anonymous device identifier used to isolate and safely manage links created on this device.</p>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                id="ownerIdDisplay"
+                readonly
+                class="glass-input flex-1 px-3.5 py-2 rounded-xl text-xs font-mono text-slate-400 bg-slate-950/50 select-all focus:outline-none"
+              />
+              <button onclick="copyOwnerId()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10">
+                Copy
+              </button>
+            </div>
+          </div>
+
+          <!-- About Project -->
+          <div class="glass-card rounded-2xl p-5 border border-white/10 space-y-2">
+            <h3 class="font-bold text-sm text-white">About Chat URL Shorter</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              A modern URL shortening service powered by Firebase Realtime Database. Built with Base62 compact codes, deep link routing, zero-dependency QR code generation, and mobile-first glassmorphism design.
+            </p>
+            <p class="text-[11px] text-slate-500 font-mono pt-2 border-t border-white/5">
+              Production Architecture: Single-file bundle & SPA Rewrite compatible.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="md:hidden sticky bottom-0 z-40 w-full border-t border-white/10 bg-slate-950/90 backdrop-blur-xl px-4 py-2 flex items-center justify-around">
+      <button onclick="switchTab('home')" data-tab="home" class="mobile-nav-tab active flex flex-col items-center gap-1 py-1 px-3 text-indigo-400">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span class="text-[10px] font-semibold">Shorten</span>
+      </button>
+
+      <button onclick="switchTab('links')" data-tab="links" class="mobile-nav-tab flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+        <div class="relative">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 6h16M4 12h16M4 18h7"></path>
+          </svg>
+          <span id="mobileNavBadge" class="hidden absolute -top-1 -right-2 w-2 h-2 rounded-full bg-indigo-500"></span>
+        </div>
+        <span class="text-[10px] font-semibold">My Links</span>
+      </button>
+
+      <button onclick="switchTab('analytics')" data-tab="analytics" class="mobile-nav-tab flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span class="text-[10px] font-semibold">Stats</span>
+      </button>
+
+      <button onclick="switchTab('settings')" data-tab="settings" class="mobile-nav-tab flex flex-col items-center gap-1 py-1 px-3 text-slate-400">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="text-[10px] font-semibold">Settings</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- QR CODE MODAL -->
+  <div id="qrModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="glass-card rounded-3xl p-6 sm:p-8 max-w-sm w-full glow-indigo border border-white/10 space-y-5 animate-in">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-base text-white">QR Code Generator</h3>
+        <button onclick="closeQrModal()" class="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- QR Container Display -->
+      <div class="bg-white p-5 rounded-2xl flex items-center justify-center shadow-inner mx-auto w-56 h-56" id="qrcodeCanvas">
+        <!-- Rendered by QRCode.js -->
+      </div>
+
+      <div class="text-center">
+        <span id="qrModalShortUrl" class="font-mono text-xs font-bold text-indigo-400 break-all select-all"></span>
+        <p class="text-[11px] text-slate-400 mt-1">Scan with any smartphone camera to open link.</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <button onclick="downloadQrImage()" class="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 flex items-center justify-center gap-1.5 transition-all">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Download</span>
+        </button>
+
+        <button onclick="shareQrModalUrl()" class="w-full py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-white/10 flex items-center justify-center gap-1.5 transition-all">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          <span>Share</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div id="deleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="glass-card rounded-3xl p-6 max-w-sm w-full border border-rose-500/20 space-y-4">
+      <div class="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </div>
+      <div class="text-center space-y-1">
+        <h3 class="font-bold text-base text-white">Delete Short Link?</h3>
+        <p class="text-xs text-slate-400">This action cannot be undone. Visitors using this short URL will receive a Link Not Found error.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5 pt-2">
+        <button onclick="closeDeleteModal()" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-white/10">
+          Cancel
+        </button>
+        <button id="confirmDeleteBtn" onclick="executeDeleteLink()" class="py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shadow-md shadow-rose-600/30">
+          Delete Link
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT LOGIC -->
+  <script>
+    /**
+     * Chat URL Shorter
+     * Production Implementation with Firebase Realtime Database
+     */
+
+    // --- 1. FIREBASE CONFIGURATION & INITIALIZATION ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCChxWVg-w1TiertkXlUrfUgcC19y-CPNw",
+      authDomain: "hiiii-72d78.firebaseapp.com",
+      databaseURL: "https://hiiii-72d78-default-rtdb.firebaseio.com",
+      projectId: "hiiii-72d78",
+      storageBucket: "hiiii-72d78.firebasestorage.app",
+      messagingSenderId: "560685164053",
+      appId: "1:560685164053:web:7f672f7503160ec868901c"
+    };
+
+    let db;
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.database();
+    } catch (err) {
+      console.error("Firebase init error:", err);
+    }
+
+    // --- 2. CONSTANTS & SYSTEM STATE ---
+    const BASE62_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const RESERVED_SLUGS = new Set([
+      "admin", "settings", "api", "about", "help", "login", "signup", "app", 
+      "dashboard", "index", "assets", "static", "r", "u", "link", "links"
+    ]);
+
+    const STATE = {
+      currentTab: 'home',
+      ownerId: '',
+      links: [],
+      currentResult: null,
+      qrInstance: null,
+      activeDeleteCode: null,
+      isShortening: false,
+      lastSubmitTime: 0
+    };
+
+    // Platform regex dictionary for smart detection & icons
+    const PLATFORMS = {
+      instagram: { name: 'Instagram', regex: /(?:instagram\.com|instagr\.am)/i, appScheme: 'instagram://' },
+      youtube: { name: 'YouTube', regex: /(?:youtube\.com|youtu\.be)/i, appScheme: 'vnd.youtube://' },
+      tiktok: { name: 'TikTok', regex: /tiktok\.com/i, appScheme: 'snssdk1233://' },
+      facebook: { name: 'Facebook', regex: /(?:facebook\.com|fb\.watch|fb\.me)/i, appScheme: 'fb://' },
+      twitter: { name: 'X / Twitter', regex: /(?:twitter\.com|x\.com)/i, appScheme: 'twitter://' },
+      reddit: { name: 'Reddit', regex: /reddit\.com/i, appScheme: 'reddit://' },
+      telegram: { name: 'Telegram', regex: /(?:t\.me|telegram\.me)/i, appScheme: 'tg://' },
+      whatsapp: { name: 'WhatsApp', regex: /(?:wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)/i, appScheme: 'whatsapp://' },
+      maps: { name: 'Google Maps', regex: /(?:maps\.google\.com|goo\.gl\/maps|maps\.app\.goo\.gl)/i, appScheme: 'geo:' },
+      github: { name: 'GitHub', regex: /github\.com/i },
+      linkedin: { name: 'LinkedIn', regex: /linkedin\.com/i },
+      spotify: { name: 'Spotify', regex: /(?:spotify\.com|open\.spotify\.com)/i, appScheme: 'spotify://' },
+      website: { name: 'Website', regex: /.*/ }
+    };
+
+    // --- 3. UTILITY FUNCTIONS ---
+    function getOrigin() {
+      return window.location.origin;
+    }
+
+    function sanitizeText(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function generateShortCode(length = 6) {
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += BASE62_CHARS.charAt(Math.floor(Math.random() * BASE62_CHARS.length));
+      }
+      return result;
+    }
+
+    function getOrCreateOwnerId() {
+      let id = localStorage.getItem('chat_url_owner_id');
+      if (!id) {
+        id = 'usr_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
+        localStorage.setItem('chat_url_owner_id', id);
+      }
+      return id;
+    }
+
+    function detectPlatform(url) {
+      try {
+        for (const [key, val] of Object.entries(PLATFORMS)) {
+          if (key === 'website') continue;
+          if (val.regex.test(url)) {
+            return key;
+          }
+        }
+      } catch (e) {}
+      return 'website';
+    }
+
+    function validateUrl(urlStr) {
+      if (!urlStr || typeof urlStr !== 'string') return { valid: false, error: 'Please provide a destination URL.' };
+      let trimmed = urlStr.trim();
+
+      // Normalize missing protocol
+      if (!/^https?:\/\//i.test(trimmed)) {
+        trimmed = 'https://' + trimmed;
+      }
+
+      // Check for forbidden dangerous protocols
+      const lower = trimmed.toLowerCase();
+      if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('file:') || lower.startsWith('vbscript:')) {
+        return { valid: false, error: 'Dangerous URL protocol blocked for security.' };
+      }
+
+      try {
+        const parsed = new URL(trimmed);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          return { valid: false, error: 'Only HTTP and HTTPS URLs are allowed.' };
+        }
+        if (!parsed.hostname || parsed.hostname.length < 3 || !parsed.hostname.includes('.')) {
+          return { valid: false, error: 'Please enter a valid domain name.' };
+        }
+        return { valid: true, url: parsed.href };
+      } catch (err) {
+        return { valid: false, error: 'Invalid URL format.' };
+      }
+    }
+
+    function validateAlias(alias) {
+      if (!alias) return { valid: true, alias: '' };
+      const cleaned = alias.trim();
+      if (!cleaned) return { valid: true, alias: '' };
+
+      if (cleaned.length < 2 || cleaned.length > 32) {
+        return { valid: false, error: 'Alias must be between 2 and 32 characters.' };
+      }
+      if (!/^[a-zA-Z0-9_-]+$/.test(cleaned)) {
+        return { valid: false, error: 'Alias can only contain letters, numbers, hyphens, and underscores.' };
+      }
+      if (RESERVED_SLUGS.has(cleaned.toLowerCase())) {
+        return { valid: false, error: 'This alias is reserved by the application.' };
+      }
+      return { valid: true, alias: cleaned };
+    }
+
+    // --- 4. TOAST NOTIFICATIONS ---
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 p-4 rounded-2xl glass-card border shadow-xl transition-all duration-300 transform translate-y-2 opacity-0 text-xs sm:text-sm font-medium ${
+        type === 'success' ? 'border-emerald-500/40 text-emerald-300' :
+        type === 'error' ? 'border-rose-500/40 text-rose-300' :
+        'border-indigo-500/40 text-indigo-300'
+      }`;
+
+      const iconSvg = type === 'success' 
+        ? '<svg class="w-5 h-5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+        : type === 'error'
+        ? '<svg class="w-5 h-5 text-rose-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+        : '<svg class="w-5 h-5 text-indigo-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
+      toast.innerHTML = `
+        ${iconSvg}
+        <span class="flex-1">${sanitizeText(message)}</span>
+      `;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', '-translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // --- 5. REDIRECT ENGINE ---
+    async function checkAndHandleRedirect() {
+      // 1. Cleanly extract shortcode from pathname, ignoring query strings and hashes
+      let rawPath = window.location.pathname || '';
+      try {
+        rawPath = decodeURIComponent(rawPath);
+      } catch (e) {}
+
+      // Normalize: strip leading/trailing slashes and split by slash
+      const pathSegments = rawPath.replace(/^\/+|\/+$/g, '').split('/').filter(Boolean);
+      let shortCode = pathSegments.length > 0 ? pathSegments[0] : '';
+
+      // Fallback: check query parameter or hash if path is root
+      if (!shortCode || shortCode === 'index.html') {
+        const urlParams = new URLSearchParams(window.location.search);
+        shortCode = urlParams.get('c') || urlParams.get('code') || urlParams.get('r') || '';
+        
+        if (!shortCode && window.location.hash) {
+          shortCode = window.location.hash.replace(/^#\/?/, '').split('?')[0].split('/')[0];
+        }
+      }
+
+      // Ignore empty or standard index / static file requests
+      if (!shortCode || shortCode === 'index.html' || shortCode === 'favicon.ico') {
+        return false;
+      }
+
+      // Check if code matches a reserved route
+      if (RESERVED_SLUGS.has(shortCode.toLowerCase())) {
+        return false;
+      }
+
+      // We have a short code: switch to redirect overlay mode
+      document.getElementById('mainApp').classList.add('hidden');
+      document.getElementById('redirectView').classList.remove('hidden');
+
+      try {
+        if (!db) {
+          throw new Error('Database not initialized');
+        }
+
+        const linkRef = db.ref('links/' + shortCode);
+        const snapshot = await linkRef.once('value');
+
+        if (!snapshot.exists()) {
+          showRedirectState('notFound');
+          return true;
+        }
+
+        const linkData = snapshot.val();
+
+        // Check active status
+        if (linkData.active === false) {
+          showRedirectState('disabled');
+          return true;
+        }
+
+        const destination = linkData.longUrl;
+        if (!destination) {
+          showRedirectState('notFound');
+          return true;
+        }
+
+        try {
+          const parsedUrl = new URL(destination);
+          document.getElementById('redirectDestinationDomain').textContent = parsedUrl.hostname;
+        } catch (e) {
+          document.getElementById('redirectDestinationDomain').textContent = destination;
+        }
+        document.getElementById('redirectFallbackLink').href = destination;
+
+        // Perform click increment asynchronously in the background
+        linkRef.child('clicks').transaction(current => (current || 0) + 1).catch(() => {});
+        linkRef.child('lastClickedAt').set(Date.now()).catch(() => {});
+
+        // Instant immediate redirection via replace to avoid back-button traps
+        window.location.replace(destination);
+        return true;
+      } catch (err) {
+        console.error('Redirect failed:', err);
+        showRedirectState('notFound');
+        return true;
+      }
+    }
+
+    function showRedirectState(state) {
+      document.getElementById('redirectLoadingState').classList.add('hidden');
+      document.getElementById('redirectNotFoundState').classList.add('hidden');
+      document.getElementById('redirectDisabledState').classList.add('hidden');
+
+      if (state === 'notFound') {
+        document.getElementById('redirectNotFoundState').classList.remove('hidden');
+      } else if (state === 'disabled') {
+        document.getElementById('redirectDisabledState').classList.remove('hidden');
+      }
+    }
+
+    function navigateToHome(e) {
+      if (e) e.preventDefault();
+      window.history.pushState({}, '', '/');
+      document.getElementById('redirectView').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      switchTab('home');
+    }
+
+    // --- 6. SHORT LINK CREATION ---
+    async function handleShortenSubmit(e) {
+      e.preventDefault();
+
+      // Rate limit protection
+      const now = Date.now();
+      if (now - STATE.lastSubmitTime < 1500) {
+        showToast('Please wait a moment before creating another link.', 'info');
+        return;
+      }
+      if (STATE.isShortening) return;
+
+      const longUrlInput = document.getElementById('longUrlInput');
+      const customAliasInput = document.getElementById('customAliasInput');
+
+      const urlValidation = validateUrl(longUrlInput.value);
+      if (!urlValidation.valid) {
+        showToast(urlValidation.error, 'error');
+        longUrlInput.focus();
+        return;
+      }
+
+      const aliasValidation = validateAlias(customAliasInput.value);
+      if (!aliasValidation.valid) {
+        showToast(aliasValidation.error, 'error');
+        customAliasInput.focus();
+        return;
+      }
+
+      setShortenButtonLoading(true);
+      STATE.lastSubmitTime = now;
+
+      try {
+        if (!db) {
+          throw new Error('Firebase Database connection is unavailable.');
+        }
+
+        let finalCode = '';
+        const targetAlias = aliasValidation.alias;
+
+        if (targetAlias) {
+          // Check if custom alias is already occupied
+          const aliasSnapshot = await db.ref('links/' + targetAlias).once('value');
+          if (aliasSnapshot.exists()) {
+            throw new Error(`The custom alias "${targetAlias}" is already taken. Please choose another.`);
+          }
+          finalCode = targetAlias;
+        } else {
+          // Generate collision-safe short code
+          let attempts = 0;
+          let found = false;
+          while (attempts < 5 && !found) {
+            const codeCandidate = generateShortCode(6);
+            const checkSnap = await db.ref('links/' + codeCandidate).once('value');
+            if (!checkSnap.exists()) {
+              finalCode = codeCandidate;
+              found = true;
+            }
+            attempts++;
+          }
+          if (!found) {
+            finalCode = generateShortCode(8);
+          }
+        }
+
+        const destinationType = detectPlatform(urlValidation.url);
+        const linkPayload = {
+          shortCode: finalCode,
+          longUrl: urlValidation.url,
+          customAlias: targetAlias || null,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          active: true,
+          clicks: 0,
+          ownerId: STATE.ownerId,
+          destinationType: destinationType
+        };
+
+        // Persist link atomically into Firebase Realtime Database
+        await db.ref('links/' + finalCode).set(linkPayload);
+
+        // Store in local session list for quick workspace retrieval
+        STATE.links.unshift(linkPayload);
+        saveLocalLinksCache();
+
+        // Update UI result
+        displayShortenSuccess(linkPayload);
+        longUrlInput.value = '';
+        customAliasInput.value = '';
+        document.getElementById('detectedPlatformBadge').classList.add('hidden');
+        showToast('Link shortened successfully!', 'success');
+        updateAllStats();
+      } catch (err) {
+        console.error('Error creating link:', err);
+        showToast(err.message || 'Failed to create shortened link.', 'error');
+      } finally {
+        setShortenButtonLoading(false);
+      }
+    }
+
+    function setShortenButtonLoading(loading) {
+      STATE.isShortening = loading;
+      const btn = document.getElementById('shortenSubmitBtn');
+      const spinner = document.getElementById('btnSpinner');
+      const text = document.getElementById('btnText');
+
+      if (loading) {
+        btn.disabled = true;
+        spinner.classList.remove('hidden');
+        text.classList.add('hidden');
+      } else {
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+        text.classList.remove('hidden');
+      }
+    }
+
+    function displayShortenSuccess(link) {
+      STATE.currentResult = link;
+      const shortUrl = `${getOrigin()}/${link.shortCode}`;
+
+      const card = document.getElementById('shortenResultCard');
+      const linkEl = document.getElementById('resultShortUrlLink');
+      const previewEl = document.getElementById('resultLongUrlPreview');
+      const platformEl = document.getElementById('resultPlatformTag');
+
+      linkEl.textContent = shortUrl;
+      linkEl.href = shortUrl;
+      previewEl.textContent = link.longUrl;
+      platformEl.textContent = PLATFORMS[link.destinationType]?.name || 'Web';
+
+      card.classList.remove('hidden');
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // --- 7. CLIPBOARD & SHARING ---
+    async function copyResultShortUrl() {
+      if (!STATE.currentResult) return;
+      const shortUrl = `${getOrigin()}/${STATE.currentResult.shortCode}`;
+      await copyToClipboard(shortUrl, 'copyResultBtnText');
+    }
+
+    async function copyToClipboard(text, buttonTextId) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-9999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          document.execCommand('copy');
+          textArea.remove();
+        }
+
+        if (buttonTextId) {
+          const btnText = document.getElementById(buttonTextId);
+          if (btnText) {
+            const original = btnText.textContent;
+            btnText.textContent = 'Copied!';
+            setTimeout(() => { btnText.textContent = original; }, 2000);
+          }
+        }
+        showToast('Link copied to clipboard!', 'success');
+      } catch (err) {
+        showToast('Failed to copy link.', 'error');
+      }
+    }
+
+    async function shareResultShortUrl() {
+      if (!STATE.currentResult) return;
+      const shortUrl = `${getOrigin()}/${STATE.currentResult.shortCode}`;
+      await shareLink(shortUrl, 'Chat URL Shorter Link');
+    }
+
+    async function shareLink(url, title = 'Shortened Link') {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: title,
+            text: 'Check out this shortened link:',
+            url: url
+          });
+          showToast('Link shared successfully!', 'success');
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            copyToClipboard(url);
+          }
+        }
+      } else {
+        copyToClipboard(url);
+      }
+    }
+
+    async function handlePasteUrl() {
+      try {
+        if (navigator.clipboard) {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            document.getElementById('longUrlInput').value = text;
+            detectInputPlatform();
+            showToast('URL pasted from clipboard', 'info');
+          }
+        } else {
+          showToast('Clipboard read not permitted. Paste manually.', 'info');
+        }
+      } catch (e) {
+        showToast('Could not access clipboard automatically.', 'info');
+      }
+    }
+
+    // --- 8. QR CODE ENGINE ---
+    function openQrModal(shortCode) {
+      const shortUrl = `${getOrigin()}/${shortCode}`;
+      const modal = document.getElementById('qrModal');
+      const urlText = document.getElementById('qrModalShortUrl');
+      const canvasContainer = document.getElementById('qrcodeCanvas');
+
+      urlText.textContent = shortUrl;
+      canvasContainer.innerHTML = '';
+
+      try {
+        if (typeof QRCode !== 'undefined') {
+          STATE.qrInstance = new QRCode(canvasContainer, {
+            text: shortUrl,
+            width: 180,
+            height: 180,
+            colorDark: '#0f172a',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        } else {
+          canvasContainer.innerHTML = '<p class="text-xs text-slate-400">QR Generator initializing...</p>';
+        }
+      } catch (err) {
+        console.error('QR creation error:', err);
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function openQrModalFromResult() {
+      if (STATE.currentResult) {
+        openQrModal(STATE.currentResult.shortCode);
+      }
+    }
+
+    function closeQrModal() {
+      document.getElementById('qrModal').classList.add('hidden');
+    }
+
+    function downloadQrImage() {
+      const canvas = document.querySelector('#qrcodeCanvas canvas');
+      const img = document.querySelector('#qrcodeCanvas img');
+      let dataUrl = null;
+
+      if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+      } else if (img && img.src) {
+        dataUrl = img.src;
+      }
+
+      if (dataUrl) {
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `chat-url-qr-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('QR code downloaded!', 'success');
+      } else {
+        showToast('Unable to export QR code image.', 'error');
+      }
+    }
+
+    function shareQrModalUrl() {
+      const url = document.getElementById('qrModalShortUrl').textContent;
+      if (url) {
+        shareLink(url, 'Scan this QR Link');
+      }
+    }
+
+    // --- 9. MY LINKS & MANAGEMENT ---
+    async function loadUserLinks() {
+      if (!db) return;
+      try {
+        // Query RTDB for links owned by this workspace ID
+        const snapshot = await db.ref('links')
+          .orderByChild('ownerId')
+          .equalTo(STATE.ownerId)
+          .once('value');
+
+        const linksList = [];
+        if (snapshot.exists()) {
+          snapshot.forEach(child => {
+            linksList.push(child.val());
+          });
+        }
+
+        // Sort descending by created timestamp
+        linksList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        STATE.links = linksList;
+        saveLocalLinksCache();
+        renderLinksList();
+        updateAllStats();
+      } catch (err) {
+        console.warn('Realtime fetch query fallback to local cache:', err);
+        loadLocalLinksCache();
+        renderLinksList();
+        updateAllStats();
+      }
+    }
+
+    function saveLocalLinksCache() {
+      try {
+        localStorage.setItem('chat_url_cached_links', JSON.stringify(STATE.links));
+      } catch (e) {}
+    }
+
+    function loadLocalLinksCache() {
+      try {
+        const raw = localStorage.getItem('chat_url_cached_links');
+        if (raw) {
+          STATE.links = JSON.parse(raw);
+        }
+      } catch (e) {}
+    }
+
+    function renderLinksList() {
+      const container = document.getElementById('linksContainer');
+      const emptyState = document.getElementById('linksEmptyState');
+      const search = (document.getElementById('linkSearchInput')?.value || '').toLowerCase().trim();
+
+      const filtered = STATE.links.filter(link => {
+        if (!search) return true;
+        return (
+          link.shortCode.toLowerCase().includes(search) ||
+          (link.customAlias && link.customAlias.toLowerCase().includes(search)) ||
+          link.longUrl.toLowerCase().includes(search)
+        );
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = filtered.map(link => {
+        const fullShortUrl = `${getOrigin()}/${link.shortCode}`;
+        const platformName = PLATFORMS[link.destinationType]?.name || 'Web';
+        const dateStr = link.createdAt ? new Date(link.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recently';
+        const isActive = link.active !== false;
+
+        return `
+          <div class="glass-card rounded-2xl p-4 sm:p-5 border border-white/10 hover:border-indigo-500/40 transition-all space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 overflow-hidden">
+                <span class="w-2.5 h-2.5 rounded-full ${isActive ? 'bg-emerald-400' : 'bg-slate-600'} shrink-0" title="${isActive ? 'Active' : 'Disabled'}"></span>
+                <a href="${fullShortUrl}" target="_blank" class="font-mono font-bold text-sm sm:text-base text-indigo-400 hover:text-indigo-300 truncate">
+                  ${fullShortUrl}
+                </a>
+                ${link.customAlias ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono shrink-0">Custom</span>' : ''}
+              </div>
+
+              <!-- Badges & Stats -->
+              <div class="flex items-center gap-2 self-start sm:self-center shrink-0">
+                <span class="text-xs px-2.5 py-1 rounded-lg bg-slate-900/80 text-slate-300 border border-white/5 font-medium flex items-center gap-1.5">
+                  <svg class="w-3.5 h-3.5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span class="font-mono font-bold text-white">${link.clicks || 0}</span> clicks
+                </span>
+                <span class="text-[11px] px-2 py-1 rounded-lg bg-slate-900/80 text-slate-400 font-mono hidden sm:inline-block">${platformName}</span>
+              </div>
+            </div>
+
+            <!-- Destination Long URL -->
+            <div class="text-xs text-slate-400 truncate font-sans">
+              <span class="text-slate-500">To:</span> <a href="${sanitizeText(link.longUrl)}" target="_blank" rel="noopener" class="hover:text-slate-200 transition-colors">${sanitizeText(link.longUrl)}</a>
+            </div>
+
+            <!-- Card Bottom Bar: Date & Actions -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-white/5 text-xs text-slate-500">
+              <span>Created ${dateStr}</span>
+
+              <div class="flex items-center gap-1.5">
+                <!-- Copy -->
+                <button onclick="copyToClipboard('${fullShortUrl}')" class="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/5 hover:text-white transition-colors" title="Copy Short URL">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+
+                <!-- Share -->
+                <button onclick="shareLink('${fullShortUrl}')" class="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/5 hover:text-white transition-colors" title="Share">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                  </svg>
+                </button>
+
+                <!-- QR -->
+                <button onclick="openQrModal('${link.shortCode}')" class="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/5 hover:text-white transition-colors" title="QR Code">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </button>
+
+                <!-- Toggle Active/Disable -->
+                <button onclick="toggleLinkActive('${link.shortCode}')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${isActive ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20'}" title="${isActive ? 'Disable link' : 'Enable link'}">
+                  ${isActive ? 'Disable' : 'Enable'}
+                </button>
+
+                <!-- Delete -->
+                <button onclick="openDeleteModal('${link.shortCode}')" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors" title="Delete Link">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function toggleLinkActive(shortCode) {
+      const link = STATE.links.find(l => l.shortCode === shortCode);
+      if (!link) return;
+
+      const newStatus = link.active === false;
+      try {
+        if (db) {
+          await db.ref(`links/${shortCode}/active`).set(newStatus);
+        }
+        link.active = newStatus;
+        saveLocalLinksCache();
+        renderLinksList();
+        updateAllStats();
+        showToast(`Link ${newStatus ? 'activated' : 'disabled'} successfully.`, 'info');
+      } catch (err) {
+        showToast('Failed to update link status.', 'error');
+      }
+    }
+
+    function openDeleteModal(shortCode) {
+      STATE.activeDeleteCode = shortCode;
+      document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      STATE.activeDeleteCode = null;
+      document.getElementById('deleteModal').classList.add('hidden');
+    }
+
+    async function executeDeleteLink() {
+      const code = STATE.activeDeleteCode;
+      if (!code) return;
+
+      try {
+        if (db) {
+          await db.ref('links/' + code).remove();
+        }
+        STATE.links = STATE.links.filter(l => l.shortCode !== code);
+        saveLocalLinksCache();
+        closeDeleteModal();
+        renderLinksList();
+        updateAllStats();
+        showToast('Short link deleted.', 'success');
+      } catch (err) {
+        showToast('Failed to delete link from database.', 'error');
+      }
+    }
+
+    // --- 10. VISUAL ANALYTICS & METRICS ---
+    function updateAllStats() {
+      const totalLinks = STATE.links.length;
+      let totalClicks = 0;
+      let activeCount = 0;
+      const platformCounts = {};
+
+      STATE.links.forEach(l => {
+        const clicks = l.clicks || 0;
+        totalClicks += clicks;
+        if (l.active !== false) activeCount++;
+        const p = l.destinationType || 'website';
+        platformCounts[p] = (platformCounts[p] || 0) + 1;
+      });
+
+      const avgClicks = totalLinks > 0 ? (totalClicks / totalLinks).toFixed(1) : '0';
+
+      // Update Home Stats Banner
+      document.getElementById('statTotalLinks').textContent = totalLinks;
+      document.getElementById('statTotalClicks').textContent = totalClicks;
+      document.getElementById('statAvgClicks').textContent = avgClicks;
+
+      // Update Badge counters
+      const badge = document.getElementById('navLinksBadge');
+      const mobileBadge = document.getElementById('mobileNavBadge');
+      if (totalLinks > 0) {
+        badge.textContent = totalLinks;
+        badge.classList.remove('hidden');
+        mobileBadge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+        mobileBadge.classList.add('hidden');
+      }
+
+      // Update Analytics Tab Metrics
+      document.getElementById('analyticsTotalLinks').textContent = totalLinks;
+      document.getElementById('analyticsTotalClicks').textContent = totalClicks;
+      document.getElementById('analyticsActiveCount').textContent = `${activeCount} of ${totalLinks} active`;
+      document.getElementById('analyticsActiveRatio').textContent = totalLinks > 0 ? `${Math.round((activeCount / totalLinks) * 100)}%` : '100%';
+
+      // Top platform
+      let topP = 'None';
+      let maxPCount = 0;
+      for (const [k, count] of Object.entries(platformCounts)) {
+        if (count > maxPCount) {
+          maxPCount = count;
+          topP = PLATFORMS[k]?.name || k;
+        }
+      }
+      document.getElementById('analyticsTopPlatform').textContent = topP;
+
+      renderAnalyticsBreakdowns(platformCounts, totalLinks);
+    }
+
+    function renderAnalyticsBreakdowns(platformCounts, totalLinks) {
+      const platformsListEl = document.getElementById('analyticsPlatformsList');
+      const topLinksListEl = document.getElementById('analyticsTopLinksList');
+
+      // 1. Platform Bars
+      const platformEntries = Object.entries(platformCounts).sort((a, b) => b[1] - a[1]);
+      if (platformEntries.length === 0) {
+        platformsListEl.innerHTML = '<p class="text-xs text-slate-500">No destination data yet.</p>';
+      } else {
+        platformsListEl.innerHTML = platformEntries.map(([platformKey, count]) => {
+          const name = PLATFORMS[platformKey]?.name || platformKey;
+          const pct = totalLinks > 0 ? Math.round((count / totalLinks) * 100) : 0;
+          return `
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-medium">
+                <span class="text-slate-300 capitalize">${name}</span>
+                <span class="text-slate-400 font-mono">${count} (${pct}%)</span>
+              </div>
+              <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-white/5">
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 2. Top Performing Links
+      const sortedByClicks = [...STATE.links].sort((a, b) => (b.clicks || 0) - (a.clicks || 0)).slice(0, 5);
+      if (sortedByClicks.length === 0) {
+        topLinksListEl.innerHTML = '<p class="text-xs text-slate-500">No clicks recorded yet.</p>';
+      } else {
+        topLinksListEl.innerHTML = sortedByClicks.map((l, index) => {
+          const shortUrl = `${getOrigin()}/${l.shortCode}`;
+          return `
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-900/50 border border-white/5 text-xs">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="w-5 h-5 rounded-md bg-indigo-500/20 text-indigo-400 font-mono font-bold flex items-center justify-center text-[10px] shrink-0">${index + 1}</span>
+                <span class="font-mono text-slate-200 truncate font-semibold">${shortUrl}</span>
+              </div>
+              <div class="font-mono font-bold text-indigo-400 shrink-0">
+                ${l.clicks || 0} clicks
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // --- 11. UI INTERACTIONS & NAVIGATION ---
+    function switchTab(tabId, e) {
+      if (e) e.preventDefault();
+      STATE.currentTab = tabId;
+
+      const tabs = ['home', 'links', 'analytics', 'settings'];
+      tabs.forEach(t => {
+        const section = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (section) {
+          if (t === tabId) {
+            section.classList.remove('hidden');
+          } else {
+            section.classList.add('hidden');
+          }
+        }
+      });
+
+      // Update Desktop Nav UI
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.className = 'nav-tab active flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-white bg-indigo-600/90 shadow-sm';
+        } else {
+          btn.className = 'nav-tab flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-slate-200 hover:bg-slate-800/50';
+        }
+      });
+
+      // Update Mobile Nav UI
+      document.querySelectorAll('.mobile-nav-tab').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.classList.add('text-indigo-400');
+          btn.classList.remove('text-slate-400');
+        } else {
+          btn.classList.remove('text-indigo-400');
+          btn.classList.add('text-slate-400');
+        }
+      });
+
+      if (tabId === 'links') {
+        renderLinksList();
+      } else if (tabId === 'analytics') {
+        updateAllStats();
+      }
+    }
+
+    function toggleCustomAlias() {
+      const container = document.getElementById('customAliasContainer');
+      const chevron = document.getElementById('aliasChevron');
+      const isHidden = container.classList.contains('hidden');
+
+      if (isHidden) {
+        container.classList.remove('hidden');
+        chevron.classList.add('rotate-90');
+      } else {
+        container.classList.add('hidden');
+        chevron.classList.remove('rotate-90');
+      }
+    }
+
+    function detectInputPlatform() {
+      const val = document.getElementById('longUrlInput').value;
+      const badge = document.getElementById('detectedPlatformBadge');
+      const text = document.getElementById('detectedPlatformText');
+
+      if (!val || val.length < 5) {
+        badge.classList.add('hidden');
+        return;
+      }
+
+      const p = detectPlatform(val);
+      if (p && p !== 'website') {
+        badge.classList.remove('hidden');
+        badge.classList.add('inline-flex');
+        text.textContent = PLATFORMS[p]?.name || p;
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // --- 12. THEME & SETTINGS ---
+    function setThemeMode(mode) {
+      localStorage.setItem('chat_url_theme', mode);
+      applyTheme(mode);
+    }
+
+    function applyTheme(mode) {
+      const html = document.documentElement;
+      const isDark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+      if (isDark) {
+        html.classList.add('dark');
+        html.classList.remove('light');
+        document.getElementById('themeIconMoon').classList.remove('hidden');
+        document.getElementById('themeIconSun').classList.add('hidden');
+      } else {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        document.getElementById('themeIconMoon').classList.add('hidden');
+        document.getElementById('themeIconSun').classList.remove('hidden');
+      }
+
+      // Update Settings theme buttons
+      ['Dark', 'Light', 'System'].forEach(t => {
+        const btn = document.getElementById('themeBtn' + t);
+        if (btn) {
+          if (mode === t.toLowerCase()) {
+            btn.className = 'py-2.5 px-3 rounded-xl border border-indigo-500 bg-indigo-600/20 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all';
+          } else {
+            btn.className = 'py-2.5 px-3 rounded-xl border border-white/10 bg-slate-900/50 text-slate-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all';
+          }
+        }
+      });
+    }
+
+    function toggleTheme() {
+      const current = localStorage.getItem('chat_url_theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      setThemeMode(next);
+    }
+
+    async function checkDbConnection(notify = false) {
+      const dot = document.getElementById('dbStatusDot');
+      const text = document.getElementById('dbStatusText');
+      const settingsSync = document.getElementById('settingsDbSyncStatus');
+
+      try {
+        if (!db) throw new Error('Database not initialized');
+        const connectedRef = db.ref('.info/connected');
+        connectedRef.on('value', snap => {
+          if (snap.val() === true) {
+            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+            text.textContent = 'RTDB Online';
+            if (settingsSync) settingsSync.textContent = 'Connected & Synchronized';
+            if (notify) showToast('Firebase Realtime Database is connected!', 'success');
+          } else {
+            dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+            text.textContent = 'Connecting...';
+            if (settingsSync) settingsSync.textContent = 'Connecting...';
+          }
+        });
+      } catch (err) {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        text.textContent = 'Offline';
+        if (settingsSync) settingsSync.textContent = 'Connection error';
+        if (notify) showToast('Firebase connection test failed.', 'error');
+      }
+    }
+
+    function copyOwnerId() {
+      const input = document.getElementById('ownerIdDisplay');
+      copyToClipboard(input.value);
+    }
+
+    // --- 13. APP INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 1. Check workspace owner ID
+      STATE.ownerId = getOrCreateOwnerId();
+      document.getElementById('ownerIdDisplay').value = STATE.ownerId;
+
+      // 2. Set domain prefix for alias input
+      const domainLabel = window.location.host + '/';
+      document.getElementById('aliasDomainPrefix').textContent = domainLabel;
+
+      // 3. Restore theme
+      const savedTheme = localStorage.getItem('chat_url_theme') || 'dark';
+      applyTheme(savedTheme);
+
+      // 4. Live URL input watcher for smart destination
+      document.getElementById('longUrlInput').addEventListener('input', detectInputPlatform);
+
+      // 5. Check if loaded as a short link redirect
+      const isRedirect = await checkAndHandleRedirect();
+      if (isRedirect) {
+        return; // Redirect mode activated
+      }
+
+      // 6. Normal App Mode: Setup Firebase status & fetch links
+      checkDbConnection();
+      loadLocalLinksCache();
+      loadUserLinks();
+    });
+  </script>
+</body>
+</html>
